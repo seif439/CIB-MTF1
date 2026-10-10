@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CIB Tactical Intelligence Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Changa:wght@400;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { cib: { dark: '#050811', card: '#0d1527', border: '#1e293b', accent: '#00f0ff', gold: '#fbbf24', red: '#ff2a5f' } },
+                    fontFamily: { sans: ['Changa', 'sans-serif'], mono: ['Share Tech Mono', 'monospace'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #050811; color: #e2e8f0; font-family: 'Changa', sans-serif; overflow-x: hidden; }
+        .bg-grid { background-image: linear-gradient(to right, rgba(0, 240, 255, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0, 240, 255, 0.05) 1px, transparent 1px); background-size: 30px 30px; }
+        .network-canvas { position: relative; width: 100%; height: 500px; background-color: #03060d; border: 1px solid #1e293b; overflow: hidden; }
+        .target-node { position: absolute; z-index: 10; cursor: move; user-select: none; }
+        @media print {
+            body * { visibility: hidden; }
+            #printableBadge, #printableBadge * { visibility: visible; }
+            #printableBadge { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 380px !important; border: 2px solid #000 !important; background: #fff !important; color: #000 !important; padding: 20px !important; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-grid min-h-screen text-slate-200">
+
+    <header class="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50 px-6 py-3 flex justify-between items-center no-print">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded bg-cib-accent/10 border border-cib-accent flex items-center justify-center text-cib-accent text-xl font-bold">
+                <i class="fa-solid fa-shield-halved"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-black tracking-wider text-white">CIB LOCAL SERVER HUB</h1>
+                <p class="text-[10px] text-emerald-400 font-mono">LIVE DATABASE SYNC 🟢</p>
+            </div>
+        </div>
+        <div id="userInfoHeader" class="hidden flex items-center gap-3">
+            <div class="text-left border-r border-slate-800 pr-3">
+                <p id="agentNameDisplay" class="font-bold text-cib-accent text-xs"></p>
+            </div>
+            <button onclick="logout()" class="text-red-400 hover:text-red-300 text-sm px-2"><i class="fa-solid fa-power-off"></i></button>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-6">
+        <section id="loginScreen" class="max-w-md mx-auto my-12 bg-slate-900/90 border border-slate-800 rounded-xl p-6 shadow-2xl">
+            <div class="text-center mb-6">
+                <i class="fa-solid fa-user-shield text-5xl text-cib-accent mb-3"></i>
+                <h2 class="text-2xl font-bold text-white">بوابة التصريح الأمني - CIB</h2>
+                <p class="text-xs text-slate-400">أدخل اسم العميل ورمز المرور للدخول</p>
+            </div>
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-mono text-slate-300 mb-1">اسم العميل (Agent ID)</label>
+                    <input type="text" id="loginUser" placeholder="Agent_alpha" required class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-cib-accent">
+                </div>
+                <div>
+                    <label class="block text-xs font-mono text-slate-300 mb-1">كلمة السر (Passcode)</label>
+                    <input type="password" id="loginPass" placeholder="cib2026" required class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-cib-accent">
+                </div>
+                <div class="bg-slate-950/60 p-2.5 rounded border border-slate-800 text-[11px] text-slate-400 flex justify-between items-center">
+                    <span>بيانات التجربة: <b class="text-cib-accent">Agent_alpha</b> / <b class="text-amber-400">cib2026</b></span>
+                    <button type="button" onclick="autoFillLogin()" class="text-xs text-cib-accent underline">تعبئة تلقائية</button>
+                </div>
+                <button type="submit" class="w-full bg-cib-accent hover:bg-cyan-400 text-slate-950 font-extrabold py-2.5 rounded transition shadow-lg shadow-cyan-500/20">
+                    تأكيد الهوية والدخول <i class="fa-solid fa-key mr-1"></i>
+                </button>
+            </form>
+        </section>
+
+        <div id="dashboardHub" class="hidden grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <aside class="lg:col-span-1 space-y-2 no-print">
+                <button onclick="switchTab('criminal-files')" id="tabBtn-criminal-files" class="tab-btn w-full text-right px-4 py-3 rounded-lg border border-cib-accent bg-cib-accent/10 text-cib-accent font-bold flex items-center justify-between">
+                    <span><i class="fa-solid fa-folder-tree ml-2"></i> ملفات شبكات المجرمين</span>
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+                <button onclick="switchTab('recruitment')" id="tabBtn-recruitment" class="tab-btn w-full text-right px-4 py-3 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-white font-bold flex items-center justify-between">
+                    <span><i class="fa-solid fa-id-card ml-2"></i> التوظيف والتصريح الأمني</span>
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+                <button onclick="switchTab('reports')" id="tabBtn-reports" class="tab-btn w-full text-right px-4 py-3 rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-white font-bold flex items-center justify-between">
+                    <span><i class="fa-solid fa-file-contract ml-2"></i> التقارير المخابراتية</span>
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+            </aside>
+
+            <section class="lg:col-span-3 space-y-6">
+                <div id="tab-criminal-files" class="tab-content space-y-6">
+                    <div id="filesListView" class="space-y-5">
+                        <div class="flex justify-between items-center bg-slate-900/90 border border-slate-800 p-4 rounded-xl">
+                            <div>
+                                <h3 class="text-base font-bold text-white"><i class="fa-solid fa-folder-open text-cib-accent ml-2"></i> أرشيف ملفات الشبكات الإجرامية</h3>
+                                <p class="text-xs text-slate-400">أي تعديل يحفظ مباشرة في ملف السيرفر</p>
+                            </div>
+                            <button onclick="openCreateFileModal()" class="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-lg">
+                                <i class="fa-solid fa-folder-plus"></i> إنشاء ملف شبكة جديد
+                            </button>
+                        </div>
+                        <div id="filesGrid" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+                    </div>
+
+                    <div id="fileWorkspaceView" class="hidden space-y-6">
+                        <div class="flex justify-between items-center bg-slate-900/90 border border-slate-800 p-4 rounded-xl">
+                            <div class="flex items-center gap-3">
+                                <button onclick="backToFilesList()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs px-3 py-1.5 rounded border border-slate-700">
+                                    <i class="fa-solid fa-arrow-right ml-1"></i> العودة للرئيسية
+                                </button>
+                                <h3 id="activeFileTitleDisplay" class="text-base font-black text-cib-accent">اسم الملف</h3>
+                            </div>
+                            <button onclick="openAddTargetModal()" class="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                                <i class="fa-solid fa-user-plus"></i> إضافة هدف
+                            </button>
+                        </div>
+
+                        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4 space-y-3">
+                            <div class="flex items-center justify-between no-print">
+                                <button onclick="openLinkModal()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs text-cib-accent px-3 py-1.5 rounded flex items-center gap-1.5">
+                                    <i class="fa-solid fa-link"></i> ربط بين هدفين
+                                </button>
+                                <span class="text-[11px] text-slate-500 font-mono">اسحب الأهداف بيدك داخل المربع</span>
+                            </div>
+                            <div id="networkCanvas" class="network-canvas rounded-lg">
+                                <svg id="svgLines" class="w-full h-full absolute inset-0 pointer-events-none"></svg>
+                            </div>
+                        </div>
+
+                        <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-4">
+                            <h4 class="text-xs font-bold text-slate-300 mb-3"><i class="fa-solid fa-users text-amber-400 ml-1"></i> قائمة أهداف هذا الملف</h4>
+                            <div id="targetsGrid" class="grid grid-cols-1 md:grid-cols-3 gap-3"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-recruitment" class="tab-content hidden space-y-6">
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-5">
+                        <h3 class="text-base font-bold text-white mb-4"><i class="fa-solid fa-id-card text-cib-accent ml-2"></i> إصدار بطاقة تصريح عميل</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <form onsubmit="generateAgentBadge(event)" class="space-y-3">
+                                <input type="text" id="badgeName" placeholder="اسم العميل الكامل" required class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white">
+                                <input type="text" id="badgeRole" placeholder="الرتبة / التخصص" required class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white">
+                                <select id="badgeClearance" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white">
+                                    <option value="LEVEL 3 - CONFIDENTIAL">LEVEL 3 - CONFIDENTIAL</option>
+                                    <option value="LEVEL 4 - SECRET">LEVEL 4 - SECRET</option>
+                                    <option value="LEVEL 5 - TOP SECRET" selected>LEVEL 5 - TOP SECRET</option>
+                                </select>
+                                <input type="url" id="badgePhoto" placeholder="رابط الصورة (URL)" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white">
+                                <button type="submit" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-2 rounded text-xs transition">توليد الهوية الآن</button>
+                            </form>
+                            <div class="flex flex-col items-center justify-center">
+                                <div id="printableBadge" class="w-72 bg-slate-950 border-2 border-amber-500/60 rounded-xl p-4 text-center shadow-2xl relative">
+                                    <div class="flex justify-between items-center border-b border-slate-800 pb-2 mb-3">
+                                        <span class="text-[9px] font-mono text-amber-400 font-bold">CENTRAL INTELLIGENCE BUREAU</span>
+                                        <i class="fa-solid fa-shield-cat text-amber-400 text-sm"></i>
+                                    </div>
+                                    <img id="badgeImgPreview" src="https://via.placeholder.com/100" class="w-20 h-20 rounded-full border-2 border-cib-accent mx-auto object-cover mb-2">
+                                    <h4 id="badgeNamePreview" class="text-base font-bold text-white">العميل الجديد</h4>
+                                    <p id="badgeRolePreview" class="text-xs text-cib-accent font-mono mb-1">SPECIAL AGENT</p>
+                                    <p id="badgeClearancePreview" class="text-[9px] bg-red-950 text-red-400 border border-red-800/50 py-0.5 px-2 rounded inline-block font-mono">LEVEL 5 - TOP SECRET</p>
+                                </div>
+                                <button onclick="window.print()" class="mt-4 bg-slate-800 hover:bg-slate-700 text-white text-xs px-3 py-1.5 rounded border border-slate-700 no-print">طباعة البطاقة <i class="fa-solid fa-print ml-1"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-reports" class="tab-content hidden space-y-6">
+                    <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-5">
+                        <h3 class="text-base font-bold text-white mb-4"><i class="fa-solid fa-file-pen text-cib-accent ml-2"></i> كتابة تقرير استخباراتي</h3>
+                        <form onsubmit="saveReport(event)" class="space-y-3">
+                            <input type="text" id="reportTitle" placeholder="عنوان التقرير" required class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white">
+                            <textarea id="reportContent" placeholder="التفاصيل والتحقيقات" rows="4" required class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-white"></textarea>
+                            <button type="submit" class="bg-cib-accent text-slate-950 font-bold px-4 py-2 rounded text-xs">حفظ التقرير <i class="fa-solid fa-floppy-disk mr-1"></i></button>
+                        </form>
+                        <div id="reportsList" class="mt-6 space-y-3"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- النوافذ المنبثقة -->
+    <div id="modalCreateFile" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-5 space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="font-bold text-white text-xs">إنشاء ملف شبكة جديد</h3>
+                <button onclick="closeCreateFileModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="handleCreateFile(event)" class="space-y-3">
+                <input type="text" id="newFileTitle" placeholder="اسم الشبكة" required class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-2 text-xs text-white">
+                <button type="submit" class="w-full bg-red-600 text-white font-bold py-2 rounded text-xs">إنشاء وفتح</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="modalAddTarget" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-5 space-y-3">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="font-bold text-white text-xs">إضافة هدف للشبكة</h3>
+                <button onclick="closeAddTargetModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="handleCreateTarget(event)" class="space-y-3">
+                <input type="text" id="targetName" placeholder="اسم الهدف" required class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white">
+                <input type="text" id="targetAlias" placeholder="اللقب" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white">
+                <input type="url" id="targetPhoto" placeholder="رابط الصورة (URL)" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white">
+                <textarea id="targetDesc" placeholder="التفاصيل" rows="2" class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white"></textarea>
+                <button type="submit" class="w-full bg-red-600 text-white font-bold py-2 rounded text-xs">إضافة</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="modalLinkTargets" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-5 space-y-3">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="font-bold text-white text-xs">ربط هدفين</h3>
+                <button onclick="closeLinkModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form onsubmit="handleLinkTargets(event)" class="space-y-3">
+                <select id="linkTargetA" required class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white"></select>
+                <select id="linkTargetB" required class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white"></select>
+                <input type="text" id="linkRelation" placeholder="نوع العلاقة" required class="w-full bg-slate-950 border border-slate-800 rounded px-3 py-1.5 text-xs text-white">
+                <button type="submit" class="w-full bg-cib-accent text-slate-950 font-bold py-2 rounded text-xs">ربط</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let criminalFiles = [];
+        let reports = [];
+        let activeFileId = null;
+
+        async function loadServerData() {
+            try {
+                const res = await fetch('/api/data');
+                const data = await res.json();
+                if(data) {
+                    criminalFiles = data.files || [];
+                    reports = data.reports || [];
+                }
+            } catch(e) { console.log("خطأ في جلب البيانات من السيرفر"); }
+
+            if(activeFileId !== null) renderActiveFileWorkspace();
+            else renderFilesList();
+        }
+
+        async function saveServerData() {
+            try {
+                await fetch('/api/data', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ files: criminalFiles, reports: reports })
+                });
+            } catch(e) { console.log("خطأ في الحفظ على السيرفر"); }
+        }
+
+        function autoFillLogin() {
+            document.getElementById('loginUser').value = 'Agent_alpha';
+            document.getElementById('loginPass').value = 'cib2026';
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('dashboardHub').classList.remove('hidden');
+            document.getElementById('userInfoHeader').classList.remove('hidden');
+            document.getElementById('agentNameDisplay').innerText = document.getElementById('loginUser').value;
+            switchTab('criminal-files');
+        }
+
+        function logout() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('dashboardHub').classList.add('hidden');
+            document.getElementById('userInfoHeader').classList.add('hidden');
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-cib-accent', 'bg-cib-accent/10', 'text-cib-accent');
+                btn.classList.add('border-slate-800', 'bg-slate-900', 'text-slate-400');
+            });
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`tabBtn-${tabId}`);
+            if(activeBtn) activeBtn.classList.add('border-cib-accent', 'bg-cib-accent/10', 'text-cib-accent');
+
+            if(tabId === 'criminal-files') {
+                if(activeFileId === null) renderFilesList(); else renderActiveFileWorkspace();
+            } else if(tabId === 'reports') {
+                renderReports();
+            }
+        }
+
+        function renderFilesList() {
+            activeFileId = null;
+            document.getElementById('filesListView').classList.remove('hidden');
+            document.getElementById('fileWorkspaceView').classList.add('hidden');
+            const grid = document.getElementById('filesGrid');
+            grid.innerHTML = '';
+            if(!criminalFiles || criminalFiles.length === 0) {
+                grid.innerHTML = '<p class="text-xs text-slate-500 col-span-3">لا توجد ملفات شبكات مسجلة.</p>';
+                return;
+            }
+            criminalFiles.forEach(file => {
+                let card = document.createElement('div');
+                card.className = 'bg-slate-950 border border-slate-800 rounded-lg p-4 flex flex-col justify-between hover:border-cib-accent transition cursor-pointer shadow-md';
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <h5 class="font-bold text-white text-xs"><i class="fa-solid fa-folder text-amber-400 ml-1"></i> ${file.title}</h5>
+                            <button onclick="event.stopPropagation(); deleteFile(${file.id})" class="text-red-400 hover:text-red-300 text-xs"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                        <p class="text-[11px] text-slate-400">الأهداف: <b class="text-cib-accent">${file.targets ? file.targets.length : 0}</b></p>
+                    </div>
+                    <div class="mt-3 text-left"><span class="text-[10px] bg-cib-accent/10 text-cib-accent border border-cib-accent/30 px-2 py-0.5 rounded">دخول الملف ←</span></div>
+                `;
+                card.onclick = () => openFile(file.id);
+                grid.appendChild(card);
+            });
+        }
+
+        function openCreateFileModal() { document.getElementById('modalCreateFile').classList.remove('hidden'); }
+        function closeCreateFileModal() { document.getElementById('modalCreateFile').classList.add('hidden'); }
+
+        function handleCreateFile(e) {
+            e.preventDefault();
+            const title = document.getElementById('newFileTitle').value;
+            criminalFiles.push({ id: Date.now(), title, targets: [], connections: [] });
+            saveServerData();
+            closeCreateFileModal();
+            document.getElementById('newFileTitle').value = '';
+            renderFilesList();
+        }
+
+        function deleteFile(fileId) {
+            if(confirm('حذف الملف؟')) {
+                criminalFiles = criminalFiles.filter(f => f.id !== fileId);
+                saveServerData();
+                renderFilesList();
+            }
+        }
+
+        function openFile(fileId) {
+            activeFileId = fileId;
+            document.getElementById('filesListView').classList.add('hidden');
+            document.getElementById('fileWorkspaceView').classList.remove('hidden');
+            renderActiveFileWorkspace();
+        }
+
+        function backToFilesList() { activeFileId = null; renderFilesList(); }
+
+        function renderActiveFileWorkspace() {
+            let file = criminalFiles.find(f => f.id === activeFileId);
+            if(!file) { renderFilesList(); return; }
+            document.getElementById('activeFileTitleDisplay').innerText = "شبكة: " + file.title;
+            renderTargetsGrid();
+            renderCanvasNodes();
+            renderConnections();
+        }
+
+        function renderTargetsGrid() {
+            let file = criminalFiles.find(f => f.id === activeFileId);
+            const grid = document.getElementById('targetsGrid');
+            grid.innerHTML = '';
+            if(!file || !file.targets || file.targets.length === 0) {
+                grid.innerHTML = '<p class="text-xs text-slate-500 col-span-3">لا توجد أهداف.</p>';
+                return;
+            }
+            file.targets.forEach(t => {
+                grid.innerHTML += `
+                    <div class="bg-slate-950 border border-slate-800 rounded p-2 flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <img src="${t.photo}" class="w-8 h-8 rounded object-cover border border-slate-700">
+                            <div><h5 class="font-bold text-white text-xs">${t.name}</h5><p class="text-[9px] text-amber-400 font-mono">${t.alias || ''}</p></div>
+                        </div>
+                        <button onclick="deleteTarget(${t.id})" class="text-red-400 text-xs"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                `;
+            });
+        }
+
+        function renderCanvasNodes() {
+            let file = criminalFiles.find(f => f.id === activeFileId);
+            const canvas = document.getElementById('networkCanvas');
+            document.querySelectorAll('.target-node').forEach(n => n.remove());
+            if(!file || !file.targets) return;
+
+            file.targets.forEach(t => {
+                const node = document.createElement('div');
+                node.className = 'target-node bg-slate-900 border border-cib-accent rounded p-2 text-center w-24 shadow-lg';
+                node.style.left = `${t.x || 50}px`;
+                node.style.top = `${t.y || 50}px`;
+                node.innerHTML = `
+                    <img src="${t.photo}" class="w-8 h-8 rounded-full mx-auto mb-1 border border-amber-400 object-cover pointer-events-none">
+                    <p class="text-[9px] font-bold text-white pointer-events-none">${t.name}</p>
+                `;
+                makeDraggable(node, t);
+                canvas.appendChild(node);
+            });
+        }
+
+        function makeDraggable(elm, targetObj) {
+            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+            elm.onmousedown = dragMouseDown;
+            function dragMouseDown(e) {
+                e.preventDefault();
+                pos3 = e.clientX; pos4 = e.clientY;
+                document.onmouseup = closeDragElement;
+                document.onmousemove = elementDrag;
+            }
+            function elementDrag(e) {
+                e.preventDefault();
+                pos1 = pos3 - e.clientX; pos2 = pos4 - e.clientY;
+                pos3 = e.clientX; pos4 = e.clientY;
+                let newY = elm.offsetTop - pos2, newX = elm.offsetLeft - pos1;
+                elm.style.top = newY + "px"; elm.style.left = newX + "px";
+                targetObj.x = newX; targetObj.y = newY;
+                saveServerData();
+                renderConnections();
+            }
+            function closeDragElement() { document.onmouseup = null; document.onmousemove = null; }
+        }
+
+        function openLinkModal() {
+            let file = criminalFiles.find(f => f.id === activeFileId);
+            if(!file || !file.targets || file.targets.length < 2) { alert('يجب وجود هدفين على الأقل للربط!'); return; }
+            document.getElementById('linkTargetA').innerHTML = file.targets.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            document.getElementById('linkTargetB').innerHTML = file.targets.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+            document.getElementById('modalLinkTargets').classList.remove('hidden');
+        }
+
+        function closeLinkModal() { document.getElementById('modalLinkTargets').classList.add('hidden'); }
+
+        function handleLinkTargets(e) {
+            e.preventDefault();
+            let file = criminalFiles.find(f => f.id === activeFileId);
+            const a = parseInt(document.getElementById('linkTargetA').value);
+            const b = parseInt(document.getElementById('linkTargetB').value);
+            const rel = document.getElementById('linkRelation').value;
+            if(a === b) { alert('اختر هدفين مختلفين'); return; }
+            if(!file.connections) file.connections = [];
+            file.connections.push({ from: a, to: b, relation: rel });
+            saveServerData();
+            renderConnections();
+            closeLinkModal();
+        }
+
+        function renderConnections() {
+            let file = criminalFiles.find(f => f.id === activeFileId);
+            const svg = document.getElementById('svgLines');
+            svg.innerHTML = '';
+            if(!file || !file.connections) return;
+            file.connections.forEach(c => {
+                const nodeA = file.targets.find(t => t.id === c.from);
+                const nodeB = file.targets.find(t => t.id === c.to);
+                if(nodeA && nodeB) {
+                    const x1 = (nodeA.x || 50) + 48, y1 = (nodeA.y || 50) + 24;
+                    const x2 = (nodeB.x || 50) + 48, y2 = (nodeB.y || 50) + 24;
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', x1); line.setAttribute('y1', y1); line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+                    line.setAttribute('stroke', '#00f0ff'); line.setAttribute('stroke-width', '2'); line.setAttribute('stroke-dasharray', '4');
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', (x1+x2)/2); text.setAttribute('y', (y1+y2)/2 - 5);
+                    text.setAttribute('fill', '#fbbf24'); text.setAttribute('font-size', '10'); text.setAttribute('text-anchor', 'middle');
+                    text.textContent = c.relation;
+                    svg.appendChild(line); svg.appendChild(text);
+                }
+            });
+        }
+
+        function openAddTargetModal() { document.getElementById('modalAddTarget').classList.remove('hidden'); }
+        function closeAddTargetModal() { document.getElementById('modalAddTarget').classList.add('hidden'); }
+
+        function handleCreateTarget(e) {
+            e.preventDefault();
+            let file = criminalFiles.find(f => f.id === activeFileId);
+            const name = document.getElementById('targetName').value;
+            const alias = document.getElementById('targetAlias').value;
+            const photo = document.getElementById('targetPhoto').value || 'https://via.placeholder.com/100';
+            const desc = document.getElementById('targetDesc').value;
+            if(!file.targets) file.targets = [];
+            file.targets.push({ id: Date.now(), name, alias, photo, desc, x: 50, y: 50 });
+            saveServerData();
+            renderActiveFileWorkspace();
+            closeAddTargetModal();
+        }
+
+        function deleteTarget(id) {
+            let file = criminalFiles.find(f => f.id === activeFileId);
+            file.targets = file.targets.filter(t => t.id !== id);
+            file.connections = file.connections.filter(c => c.from !== id && c.to !== id);
+            saveServerData();
+            renderActiveFileWorkspace();
+        }
+
+        function generateAgentBadge(e) {
+            e.preventDefault();
+            document.getElementById('badgeNamePreview').innerText = document.getElementById('badgeName').value;
+            document.getElementById('badgeRolePreview').innerText = document.getElementById('badgeRole').value;
+            document.getElementById('badgeClearancePreview').innerText = document.getElementById('badgeClearance').value;
+            const photo = document.getElementById('badgePhoto').value;
+            if(photo) document.getElementById('badgeImgPreview').src = photo;
+        }
+
+        function saveReport(e) {
+            e.preventDefault();
+            reports.push({ id: Date.now(), title: document.getElementById('reportTitle').value, content: document.getElementById('reportContent').value, date: new Date().toLocaleDateString('ar-EG') });
+            saveServerData();
+            renderReports();
+            document.getElementById('reportTitle').value = '';
+            document.getElementById('reportContent').value = '';
+        }
+
+        function deleteReport(id) {
+            reports = reports.filter(r => r.id !== id);
+            saveServerData();
+            renderReports();
+        }
+
+        function renderReports() {
+            const list = document.getElementById('reportsList');
+            list.innerHTML = reports.map(r => `
+                <div class="bg-slate-950 border border-slate-800 rounded p-3 flex justify-between items-start gap-4">
+                    <div><h5 class="font-bold text-cib-accent text-xs">${r.title}</h5><p class="text-xs text-slate-300 mt-1">${r.content}</p></div>
+                    <button onclick="deleteReport(${r.id})" class="text-red-400 text-xs"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            `).join('');
+        }
+
+        window.onload = function() {
+            loadServerData();
+            setInterval(loadServerData, 3000); // تحديث دوري كل 3 ثوانٍ ليجلب أي تعديل جديد من السيرفر
+        }
+    </script>
+</body>
+</html>ح
