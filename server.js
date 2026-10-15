@@ -8,6 +8,11 @@ app.use(express.static(__dirname));
 
 const DB_FILE = path.join(__dirname, 'database.json');
 
+// توجيه الصفحة الرئيسية مباشرة إلى ملف index.html لحل مشكلة Cannot GET /
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
+});
+
 // جلب البيانات من ملف قاعدة البيانات
 app.get('/api/data', (req, res) => {
     if (fs.existsSync(DB_FILE)) {
